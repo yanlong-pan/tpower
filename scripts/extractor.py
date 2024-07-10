@@ -15,11 +15,13 @@ def extract_meter_values():
     output_path = os.path.join(os.path.dirname(current_dir), 'statics/logs/extracted', f'meter_values_from_{raw_log_filename}')
 
     try:
+        extracted_lines = 0
         with open(raw_log_filepath, 'r') as file, open(output_path, 'w') as output_file:
             for line in file:
                 if keyword in line:
                     output_file.write(line)
-        loggers.debug_file_logger.debug(f'Extracted content has been saved to: {output_path}')
+                    extracted_lines += 1
+        loggers.debug_file_logger.debug(f'Extracted content ({extracted_lines} lines) has been saved to: {output_path}')
     except FileNotFoundError:
         loggers.error_file_logger.error(f'Error: File {raw_log_filepath} not found.')
     except Exception as e:
