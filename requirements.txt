@@ -1,0 +1,2 @@
+python-dotenv==1.0.0
+kuai_log==0.8
