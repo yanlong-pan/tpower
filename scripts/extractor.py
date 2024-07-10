@@ -2,7 +2,7 @@ import os
 
 from utilities import loggers
 
-# Get the current script directory
+# Get the current script directory path
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
 def extract_meter_values():
@@ -11,7 +11,7 @@ def extract_meter_values():
     raw_log_filepath = os.path.join(raw_logs_dir_path, raw_log_filename)
     keyword = 'MeterValues'
 
-    # Generate the relative path for the output file
+    # Generate the absolute path for the output file
     output_path = os.path.join(os.path.dirname(current_dir), 'statics/logs/extracted', f'meter_values_from_{raw_log_filename}')
 
     try:
