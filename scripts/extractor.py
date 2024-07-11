@@ -121,9 +121,8 @@ def extract_content_with_keyword(keyword: str, raw_log_filepath, output_path, mu
                 r = {
                     'keyword': keyword,
                     'line': line,
-                    'error': f'An error occurred: {traceback.format_exc()}'
                 }
-                loggers.error_file_logger.error(r)
+                loggers.error_file_logger.error(json.dumps(r, indent=4), exc_info=True)
 
     summary = {
         'success': is_success,
