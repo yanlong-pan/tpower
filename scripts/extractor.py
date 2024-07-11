@@ -1,12 +1,14 @@
 import json
+import threading
 import os
 
 from scripts import patterns
 from utilities import loggers
-from utilities.comparator import compare_json_keys
 
 # Get the current script directory path
 current_dir = os.path.dirname(os.path.abspath(__file__))
+# 创建线程锁
+lock = threading.Lock()
 
 def load_keywords(file_path):
     if not os.path.exists(file_path):
@@ -37,7 +39,7 @@ def extract_keywords_from_log(log_file_path, known_keywords_path, suspicious_key
                             keyword = match.group(1)
                             if keyword and keyword.isalpha():  # Check if the keyword is a word (contains only letters)
                                 formatted_kw = keyword.strip().lower()
-                                keywords_in_log.add(formatted_kw)
+                                keywords_in_log.add(keyword)  # Will be used to match raw data, so we don't need to format it
                                 if formatted_kw not in known_keywords:
                                     known_keywords.add(formatted_kw)
                                     loggers.debug_file_logger.debug(f'Found a new keyword \'{keyword}\' in line {line_num} within {log_file_path}')
@@ -70,7 +72,7 @@ def extract_keywords_from_log(log_file_path, known_keywords_path, suspicious_key
         return keywords_in_log
 
 
-def extract_content_with_keyword(keyword: str, raw_log_filepath, output_path):
+def extract_content_with_keyword(keyword: str, raw_log_filepath, output_path, multithread_result=None):
     try:
         extracted_lines, total_lines = 0, 0
         unique_structure_content_examples = set()
@@ -102,18 +104,23 @@ def extract_content_with_keyword(keyword: str, raw_log_filepath, output_path):
                             # Stop the iteration once a match is found no matter if it's unique
                             break
                     
+        summary = {
+            'unique_structure_content_examples': list(unique_structure_content_examples),
+            'extracted_lines': extracted_lines,
+            'total_lines': total_lines,
+            'input_filepath': raw_log_filepath,
+            'output_filepath': output_path,
+        }
         r = {
             'success': True,
-            'data': {
-                'keyword': keyword,
-                'unique_structure_content_examples': list(unique_structure_content_examples),
-                'extracted_lines': extracted_lines,
-                'total_lines': total_lines,
-                'input_filepath': raw_log_filepath,
-                'output_filepath': output_path,
-            }
+            'data': {'keyword': keyword, **summary}
         }
         loggers.debug_file_logger.debug(json.dumps(r, indent=4))
+        if isinstance(multithread_result, list):
+            with lock:
+                multithread_result.append({
+                    keyword: summary
+                })
         return r
     except FileNotFoundError:
         r = {
@@ -121,6 +128,9 @@ def extract_content_with_keyword(keyword: str, raw_log_filepath, output_path):
             'error': f'Error: File {raw_log_filepath} not found.'
         }
         loggers.error_file_logger.error(json.dumps(r, indent=4))
+        if isinstance(multithread_result, list):
+            with lock:
+                multithread_result.append(r)
         return r
     except Exception as e:
         r = {
@@ -128,22 +138,46 @@ def extract_content_with_keyword(keyword: str, raw_log_filepath, output_path):
             'error': f'An error occurred: {e}'
         }
         loggers.error_file_logger.error(json.dumps(r, indent=4))
+        if isinstance(multithread_result, list):
+            with lock:
+                multithread_result.append(r)
         return r
 
 if __name__ == "__main__":
     # TODO: put into a function
+    raw_logs_dir_path = os.path.join(os.path.dirname(current_dir), 'statics/logs/raw')
+    raw_log_filename = input(f"Please enter the log file name under '{raw_logs_dir_path}' (eg. log1.log): ")
+    raw_log_filepath = os.path.join(raw_logs_dir_path, raw_log_filename)
+
     kws = extract_keywords_from_log(
-        log_file_path='/Users/panyanlong/workspace/tpower/statics/logs/raw/log2.log',
+        log_file_path=raw_log_filepath,
         known_keywords_path='/Users/panyanlong/workspace/tpower/statics/keywords.txt',
         suspicious_keywords_path='/Users/panyanlong/workspace/tpower/statics/keywords_suspicious.txt'
     )
 
-    raw_logs_dir_path = os.path.join(os.path.dirname(current_dir), 'statics/logs/raw')
-    raw_log_filename = input(f"Please enter the log file name under '{raw_logs_dir_path}' (eg. log1.log): ")
-    raw_log_filepath = os.path.join(raw_logs_dir_path, raw_log_filename)
-    res = {}
-    for keyword in sorted(kws):    
-        output_path = os.path.join(os.path.dirname(current_dir), 'statics/logs/extracted', keyword.lower(), f'from_{raw_log_filename}')
-        r = extract_content_with_keyword(keyword, raw_log_filepath, output_path)
-        res[keyword.lower()] = r['data']
-    print(json.dumps(res, indent=4))
+# # 单线程
+#     res = {}
+#     for keyword in sorted(kws):    
+#         output_path = os.path.join(os.path.dirname(current_dir), 'statics/logs/extracted', keyword.lower(), f'from_{raw_log_filename}')
+#         r = extract_content_with_keyword(keyword, raw_log_filepath, output_path)
+#         res[keyword.lower()] = r['data']
+#     print(json.dumps(res, indent=4))
+
+
+# 多线程
+    # 创建线程列表
+    threads = []
+    multithread_result = []
+    # 定义要传入的不同参数列表
+    parameters = [(keyword,raw_log_filepath, os.path.join(os.path.dirname(current_dir), 'statics/logs/extracted', keyword.lower(), f'from_{raw_log_filename}'), multithread_result) for keyword in sorted(kws)]
+    for param in parameters:
+        # 创建线程目标函数
+        thread = threading.Thread(target=extract_content_with_keyword, args=param)  # 使用args传递参数给线程目标函数
+        threads.append(thread)  # 将线程添加到列表中
+        thread.start()  # 启动线程
+
+    # 等待所有线程完成
+    for thread in threads:
+        thread.join()  # 等待每个线程结束
+
+    print(json.dumps(multithread_result, indent=4))
