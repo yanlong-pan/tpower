@@ -1,6 +1,4 @@
-import json
-
-def compare_json_keys(json1, json2):
+def compare_json_keys(json1, json2) -> bool:
     if isinstance(json1, dict) and isinstance(json2, dict):
         # Compare the keys of the dictionaries
         if set(json1.keys()) != set(json2.keys()):

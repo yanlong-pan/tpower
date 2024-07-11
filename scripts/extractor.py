@@ -17,11 +17,9 @@ def load_keywords(file_path):
 def save_keywords(keywords, file_path):
     with open(file_path, 'w') as file:
         for keyword in sorted(keywords):
-            file.write(f"{keyword}\n")
+            file.write(f"{keyword.strip().lower()}\n")
 
 def extract_keywords_from_log(log_file_path, known_keywords_path, suspicious_keywords_path):
-    keyword_patterns = [patterns.THIRD_ARRAY_ITEM_IN_QUOTES]
-    suspicious_keyword_patterns = [patterns.THIRD_ARRAY_ITEM]
     
     known_keywords = load_keywords(known_keywords_path)
     suspicious_keywords = load_keywords(suspicious_keywords_path)
@@ -33,27 +31,30 @@ def extract_keywords_from_log(log_file_path, known_keywords_path, suspicious_key
                 if 'receive message' in line:
                     found_keyword = False
                     # walk through all known keyword patterns
-                    for keyword_pattern in keyword_patterns:
+                    for keyword_pattern in patterns.keywords:
                         match = keyword_pattern.search(line)
                         if match:
                             keyword = match.group(1)
                             if keyword and keyword.isalpha():  # Check if the keyword is a word (contains only letters)
-                                keywords_in_log.add(keyword)
-                                if keyword.lower() not in known_keywords:
-                                    known_keywords.add(keyword.lower())
+                                formatted_kw = keyword.strip().lower()
+                                keywords_in_log.add(formatted_kw)
+                                if formatted_kw not in known_keywords:
+                                    known_keywords.add(formatted_kw)
                                     loggers.debug_file_logger.debug(f'Found a new keyword \'{keyword}\' in line {line_num} within {log_file_path}')
                             # stop propagating once found a match
                             found_keyword = True
                             break
                     # walk through all suspicious keyword patterns if no known keyword is found
                     if not found_keyword:      
-                        for suspicious_keyword_pattern in suspicious_keyword_patterns:
+                        for suspicious_keyword_pattern in patterns.suspicious_keywords:
                             match = suspicious_keyword_pattern.search(line)
                             if match:
                                 suspicious_keyword = match.group(1)
-                                if suspicious_keyword and suspicious_keyword.lower() not in suspicious_keywords:
-                                    suspicious_keywords.add(suspicious_keyword.lower())
-                                    loggers.debug_file_logger.debug(f'Found a new suspicious keyword \'{suspicious_keyword}\' in line {line_num} within {log_file_path}')
+                                if suspicious_keyword:
+                                    formatted_suspicious_kw = suspicious_keyword.strip().lower()
+                                    if formatted_suspicious_kw not in suspicious_keywords:
+                                        suspicious_keywords.add(formatted_suspicious_kw)
+                                        loggers.debug_file_logger.debug(f'Found a new suspicious keyword \'{suspicious_keyword}\' in line {line_num} within {log_file_path}')
                                 break
         
     except FileNotFoundError:
@@ -65,16 +66,17 @@ def extract_keywords_from_log(log_file_path, known_keywords_path, suspicious_key
     else:
         save_keywords(known_keywords, known_keywords_path)
         save_keywords(suspicious_keywords, suspicious_keywords_path)
-        loggers.debug_file_logger.debug(f'Found keywords \'{keywords_in_log}\' in {log_file_path}')
+        loggers.debug_file_logger.debug(f"Found keywords \'{keywords_in_log}\' in {log_file_path}")
         return keywords_in_log
 
 
-def extract_content_with_keyword(keyword, raw_log_filepath, output_path):
+def extract_content_with_keyword(keyword: str, raw_log_filepath, output_path):
     try:
         extracted_lines, total_lines = 0, 0
-        unique_content_structures = set()
-        unique_content_patterns = [patterns.JSON_CONTENT_AFTER_THIRD_ARRAY_ITEM]
+        unique_structure_content_examples = set()
+        comparable_content_patterns = patterns.COMPARABLE_KEYWORD_CONTENT_MAP[keyword.lower()]
         output_dir = os.path.dirname(output_path)
+        # Create directories if non-exist
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
         with open(raw_log_filepath, 'r') as file, open(output_path, 'w') as output_file:
@@ -83,27 +85,28 @@ def extract_content_with_keyword(keyword, raw_log_filepath, output_path):
                 if keyword in line:
                     output_file.write(line)
                     extracted_lines += 1
-                    # TODO: extract unique keyword content
-                    for unique_content_pattern in unique_content_patterns:
-                        match = unique_content_pattern.search(line)
+                    # extract content examples having unique data structures
+                    for comparable_content_pattern in comparable_content_patterns:
+                        match = comparable_content_pattern.pattern.search(line)
                         if match:
                             content = match.group(1)
                             if content:
-                                if not unique_content_structures:
-                                    unique_content_structures.add(content)
+                                if not unique_structure_content_examples:
+                                    unique_structure_content_examples.add(content)
                                 else:
                                     is_unique = True
-                                    for existing_content_structure in unique_content_structures:
-                                        is_unique = not compare_json_keys(json.loads(content), json.loads(existing_content_structure)) and is_unique
+                                    for item in unique_structure_content_examples:
+                                        is_unique = not comparable_content_pattern.is_identical(content, item) and is_unique
                                     if is_unique:
-                                        unique_content_structures.add(content)
+                                        unique_structure_content_examples.add(content)
+                            # Stop the iteration once a match is found no matter if it's unique
                             break
                     
         r = {
             'success': True,
             'data': {
                 'keyword': keyword,
-                'unique_content_structures': list(unique_content_structures),
+                'unique_structure_content_examples': list(unique_structure_content_examples),
                 'extracted_lines': extracted_lines,
                 'total_lines': total_lines,
                 'input_filepath': raw_log_filepath,
