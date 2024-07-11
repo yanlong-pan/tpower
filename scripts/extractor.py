@@ -65,6 +65,7 @@ def extract_keywords_from_log(log_file_path, known_keywords_path, suspicious_key
     else:
         save_keywords(known_keywords, known_keywords_path)
         save_keywords(suspicious_keywords, suspicious_keywords_path)
+        loggers.debug_file_logger.debug(f'Found keywords \'{keywords_in_log}\' in {log_file_path}')
         return keywords_in_log
 
 
