@@ -7,7 +7,7 @@ from utilities import loggers
 
 # Get the current script directory path
 current_dir = os.path.dirname(os.path.abspath(__file__))
-# 创建线程锁
+# Create a thread lock
 lock = threading.Lock()
 
 def load_keywords(file_path):
@@ -143,41 +143,50 @@ def extract_content_with_keyword(keyword: str, raw_log_filepath, output_path, mu
                 multithread_result.append(r)
         return r
 
-if __name__ == "__main__":
-    # TODO: put into a function
-    raw_logs_dir_path = os.path.join(os.path.dirname(current_dir), 'statics/logs/raw')
+def _prepare_for_file_extractor():
+    root_dir = os.path.dirname(current_dir)
+    raw_logs_dir_path = os.path.join(root_dir, 'statics/logs/raw')
     raw_log_filename = input(f"Please enter the log file name under '{raw_logs_dir_path}' (eg. log1.log): ")
     raw_log_filepath = os.path.join(raw_logs_dir_path, raw_log_filename)
 
     kws = extract_keywords_from_log(
         log_file_path=raw_log_filepath,
-        known_keywords_path='/Users/panyanlong/workspace/tpower/statics/keywords.txt',
-        suspicious_keywords_path='/Users/panyanlong/workspace/tpower/statics/keywords_suspicious.txt'
+        known_keywords_path=os.path.join(root_dir, 'statics/keywords.txt'),
+        suspicious_keywords_path=os.path.join(root_dir, 'statics/keywords_suspicious.txt')
     )
+    return kws, root_dir, raw_log_filename, raw_log_filepath
 
-# # 单线程
-#     res = {}
-#     for keyword in sorted(kws):    
-#         output_path = os.path.join(os.path.dirname(current_dir), 'statics/logs/extracted', keyword.lower(), f'from_{raw_log_filename}')
-#         r = extract_content_with_keyword(keyword, raw_log_filepath, output_path)
-#         res[keyword.lower()] = r['data']
-#     print(json.dumps(res, indent=4))
+# Process keyword one by one in a file
+def single_threaded_log_file_extractor():
+    keywords, root_dir, raw_log_filename, raw_log_filepath = _prepare_for_file_extractor()
+    res = {}
+    for keyword in sorted(keywords):    
+        output_path = os.path.join(root_dir, 'statics/logs/extracted', keyword.lower(), f'from_{raw_log_filename}')
+        r = extract_content_with_keyword(keyword, raw_log_filepath, output_path)
+        res[keyword.lower()] = r['data']
+    return res
 
-
-# 多线程
-    # 创建线程列表
+# Concurrently process all the keywords in a file
+def multi_threaded_log_file_extractor():
+    keywords, root_dir, raw_log_filename, raw_log_filepath = _prepare_for_file_extractor()
+    # Create a list of threads
     threads = []
     multithread_result = []
-    # 定义要传入的不同参数列表
-    parameters = [(keyword,raw_log_filepath, os.path.join(os.path.dirname(current_dir), 'statics/logs/extracted', keyword.lower(), f'from_{raw_log_filename}'), multithread_result) for keyword in sorted(kws)]
+    # Define a list of different parameters to pass
+    parameters = [(keyword, raw_log_filepath, os.path.join(root_dir, 'statics/logs/extracted', keyword.lower(), f'from_{raw_log_filename}'), multithread_result) for keyword in sorted(keywords)]
     for param in parameters:
-        # 创建线程目标函数
-        thread = threading.Thread(target=extract_content_with_keyword, args=param)  # 使用args传递参数给线程目标函数
-        threads.append(thread)  # 将线程添加到列表中
-        thread.start()  # 启动线程
-
-    # 等待所有线程完成
+        # Create the target function for the thread
+        thread = threading.Thread(target=extract_content_with_keyword, args=param)  # Use args to pass parameters to the thread's target function
+        threads.append(thread)  # Add the thread to the list
+        thread.start()  # Start the thread
+    # Wait for all threads to complete
     for thread in threads:
-        thread.join()  # 等待每个线程结束
+        thread.join()  # Wait for each thread to finish
+    return multithread_result
 
-    print(json.dumps(multithread_result, indent=4))
+if __name__ == "__main__":
+    # r = single_threaded_log_file_extractor()
+    # r = multi_threaded_log_file_extractor()
+    # print(json.dumps(r, indent=4))
+    pass
+    
