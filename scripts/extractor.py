@@ -1,6 +1,7 @@
 import json
 import threading
 import os
+import traceback
 
 from scripts import patterns
 from utilities import loggers
@@ -71,19 +72,29 @@ def extract_keywords_from_log(log_file_path, known_keywords_path, suspicious_key
         loggers.debug_file_logger.debug(f"Found keywords \'{keywords_in_log}\' in {log_file_path}")
         return keywords_in_log
 
+def _extract_ocpp_charger_num(line):
+    try:
+        match = patterns.OCPP_CHARGER_NUM.search(line)
+        num = match.group(1)
+        return f'Ocpp charger number: {num}'
+    except:
+        return f'Ocpp charger number: Not found'
 
 def extract_content_with_keyword(keyword: str, raw_log_filepath, output_path, multithread_result=None):
-    try:
-        extracted_lines, total_lines = 0, 0
-        unique_structure_content_examples = set()
-        comparable_content_patterns = patterns.COMPARABLE_KEYWORD_CONTENT_MAP[keyword.lower()]
-        output_dir = os.path.dirname(output_path)
-        # Create directories if non-exist
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-        with open(raw_log_filepath, 'r') as file, open(output_path, 'w') as output_file:
-            for line in file:
-                total_lines += 1
+    is_success = True
+    extracted_lines, total_lines = 0, 0
+    # The former set simply stores content so that they can compare between each other,
+    # while the latter set will store content with charger number concatenated
+    unique_structure_content_examples, unique_example_with_charger_num = set(), set()
+    comparable_content_patterns = patterns.COMPARABLE_KEYWORD_CONTENT_MAP[keyword.lower()]
+    output_dir = os.path.dirname(output_path)
+    # Create directories if non-exist
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    with open(raw_log_filepath, 'r') as file, open(output_path, 'w') as output_file:
+        for line in file:
+            total_lines += 1
+            try:
                 if keyword in line:
                     output_file.write(line)
                     extracted_lines += 1
@@ -95,53 +106,42 @@ def extract_content_with_keyword(keyword: str, raw_log_filepath, output_path, mu
                             if content:
                                 if not unique_structure_content_examples:
                                     unique_structure_content_examples.add(content)
+                                    unique_example_with_charger_num.add(f'{content}, {_extract_ocpp_charger_num(line)}')
                                 else:
                                     is_unique = True
                                     for item in unique_structure_content_examples:
                                         is_unique = not comparable_content_pattern.is_identical(content, item) and is_unique
                                     if is_unique:
                                         unique_structure_content_examples.add(content)
+                                        unique_example_with_charger_num.add(f'{content}, {_extract_ocpp_charger_num(line)}')
                             # Stop the iteration once a match is found no matter if it's unique
                             break
-                    
-        summary = {
-            'unique_structure_content_examples': list(unique_structure_content_examples),
-            'extracted_lines': extracted_lines,
-            'total_lines': total_lines,
-            'input_filepath': raw_log_filepath,
-            'output_filepath': output_path,
-        }
-        r = {
-            'success': True,
-            'data': {'keyword': keyword, **summary}
-        }
-        loggers.debug_file_logger.debug(json.dumps(r, indent=4))
-        if isinstance(multithread_result, list):
-            with lock:
-                multithread_result.append({
-                    keyword: summary
-                })
-        return r
-    except FileNotFoundError:
-        r = {
-            'success': False,
-            'error': f'Error: File {raw_log_filepath} not found.'
-        }
-        loggers.error_file_logger.error(json.dumps(r, indent=4))
-        if isinstance(multithread_result, list):
-            with lock:
-                multithread_result.append(r)
-        return r
-    except Exception as e:
-        r = {
-            'success': False,
-            'error': f'An error occurred: {e}'
-        }
-        loggers.error_file_logger.error(json.dumps(r, indent=4))
-        if isinstance(multithread_result, list):
-            with lock:
-                multithread_result.append(r)
-        return r
+            except:
+                is_success = False
+                r = {
+                    'keyword': keyword,
+                    'line': line,
+                    'error': f'An error occurred: {traceback.format_exc()}'
+                }
+                loggers.error_file_logger.error(r)
+
+    summary = {
+        'success': is_success,
+        'keyword': keyword,
+        'unique_example_with_charger_num': list(unique_example_with_charger_num),
+        'extracted_lines': extracted_lines,
+        'total_lines': total_lines,
+        'input_filepath': raw_log_filepath,
+        'output_filepath': output_path,
+    }
+    loggers.debug_file_logger.debug(json.dumps(summary, indent=4))
+    # Store results when use multithreads
+    if isinstance(multithread_result, list):
+        with lock:
+            multithread_result.append({
+                keyword: summary
+            })
+    return r
 
 def _prepare_for_file_extractor():
     root_dir = os.path.dirname(current_dir)
@@ -169,16 +169,20 @@ def single_threaded_log_file_extractor():
 # Concurrently process all the keywords in a file
 def multi_threaded_log_file_extractor():
     keywords, root_dir, raw_log_filename, raw_log_filepath = _prepare_for_file_extractor()
-    # Create a list of threads
-    threads = []
-    multithread_result = []
+    threads, multithread_result = [], []
     # Define a list of different parameters to pass
-    parameters = [(keyword, raw_log_filepath, os.path.join(root_dir, 'statics/logs/extracted', keyword.lower(), f'from_{raw_log_filename}'), multithread_result) for keyword in sorted(keywords)]
+    parameters = [(
+        keyword,
+        raw_log_filepath, os.path.join(root_dir, 'statics/logs/extracted', keyword.lower(),
+        f'from_{raw_log_filename}'),
+        multithread_result
+    ) for keyword in sorted(keywords)]
+
     for param in parameters:
         # Create the target function for the thread
         thread = threading.Thread(target=extract_content_with_keyword, args=param)  # Use args to pass parameters to the thread's target function
-        threads.append(thread)  # Add the thread to the list
-        thread.start()  # Start the thread
+        threads.append(thread) 
+        thread.start()
     # Wait for all threads to complete
     for thread in threads:
         thread.join()  # Wait for each thread to finish
@@ -186,7 +190,7 @@ def multi_threaded_log_file_extractor():
 
 if __name__ == "__main__":
     # r = single_threaded_log_file_extractor()
-    # r = multi_threaded_log_file_extractor()
-    # print(json.dumps(r, indent=4))
+    r = multi_threaded_log_file_extractor()
+    print(json.dumps(r, indent=4))
     pass
     
