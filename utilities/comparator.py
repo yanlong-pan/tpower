@@ -20,32 +20,33 @@ def compare_json_keys(json1, json2) -> bool:
         # For non-dict and non-list types, return True (since only keys are compared)
         return True
 
-# TODO: remove
-# Example JSON objects
-json_obj1 = {
-    "connectorId": 0,
-    "errorCode": "NoError",
-    "status": "Available",
-    "timestamp": "2024-07-09T07:14:24Z",
-    "details": {
-        "location": "A1",
-        "type": "fast",
-        "extra": [ {"a": "a"}, {"a": "c"}]
-    }
-}
 
-json_obj2 = {
-    "connectorId": 1,
-    "errorCode": "Error",
-    "status": "Occupied",
-    "timestamp": "2024-07-09T08:14:24Z",
-    "details": {
-        "location": "A2",
-        "type": "slow",
-        "extra": [ {"a": "a"}, {"a": "b"}]
+if __name__ == "__main__":
+    # Example JSON objects
+    json_obj1 = {
+        "connectorId": 0,
+        "errorCode": "NoError",
+        "status": "Available",
+        "timestamp": "2024-07-09T07:14:24Z",
+        "details": {
+            "location": "A1",
+            "type": "fast",
+            "extra": [ {"a": "a"}, {"a": "c"}]
+        }
     }
-}
 
-# Compare the two JSON objects
-are_keys_equal = compare_json_keys(json_obj1, json_obj2)
-print("Are JSON keys equal?", are_keys_equal)
+    json_obj2 = {
+        "connectorId": 1,
+        "errorCode": "Error",
+        "status": "Occupied",
+        "timestamp": "2024-07-09T08:14:24Z",
+        "details": {
+            "location": "A2",
+            "type": "slow",
+            "extra": [ {"a": "a"}, {"a": "b"}]
+        }
+    }
+
+    # Compare the two JSON objects
+    are_keys_equal = compare_json_keys(json_obj1, json_obj2)
+    print("Are JSON keys equal?", are_keys_equal)
