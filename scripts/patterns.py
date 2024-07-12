@@ -8,7 +8,7 @@ from utilities import comparator
 # Define regex patterns, each should contain a target group
 THIRD_ARRAY_ITEM=re.compile(r'receive message \[\s*\d+\s*,\s*"[^"]+"\s*,(.+)\]')
 THIRD_ARRAY_ITEM_IN_QUOTES=re.compile(r'receive message \[\s*\d+\s*,\s*"[^"]+"\s*,\s*"([^"]+)"')
-JSON_CONTENT_AFTER_THIRD_ARRAY_ITEM=re.compile(r'receive message\s*\[.+,.+,\"\w+\",(\{.+\})[,|\]]')
+JSON_CONTENT_AFTER_THIRD_ARRAY_ITEM=re.compile(r'receive message\s*\[.+,.+,\s*\"\w+\"\s*,\s*(\{.+\})\s*]')
 OCPP_CHARGER_NUM=re.compile(r'ocpp:([\w|\d]+):')
 
 # Sniffer to identify keywords in raw data
