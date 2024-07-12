@@ -140,7 +140,7 @@ def extract_content_with_keyword(keyword: str, raw_log_filepath, output_path, mu
             multithread_result.append({
                 keyword: summary
             })
-    return r
+    return summary
 
 def _prepare_for_file_extractor():
     root_dir = os.path.dirname(current_dir)
