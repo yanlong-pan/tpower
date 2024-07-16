@@ -5,15 +5,13 @@ from pydantic import BaseModel
 from typing import Callable
 from utilities import comparator
 
-# Define regex patterns, each should contain a target group
-THIRD_ARRAY_ITEM=re.compile(r'receive message \[\s*\d+\s*,\s*"[^"]+"\s*,(.+)\]')
+# Define regex patterns, each should contain at least a target group
 THIRD_ARRAY_ITEM_IN_QUOTES=re.compile(r'receive message \[\s*\d+\s*,\s*"[^"]+"\s*,\s*"([^"]+)"')
 JSON_CONTENT_AFTER_THIRD_ARRAY_ITEM=re.compile(r'receive message\s*\[.+,.+,\s*\"\w+\"\s*,\s*(\{.+\})\s*]')
 OCPP_CHARGER_NUM=re.compile(r'ocpp:([\w|\d]+):')
 
 # Sniffer to identify keywords in raw data
 keywords = [THIRD_ARRAY_ITEM_IN_QUOTES]
-suspicious_keywords = [THIRD_ARRAY_ITEM]
 
 # Used to compare the structures of extracted contents
 class ComparablePattern(BaseModel):
