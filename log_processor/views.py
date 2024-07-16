@@ -1,3 +1,4 @@
+import json
 import re
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -6,7 +7,7 @@ from rest_framework import status
 from utilities import loggers
 from .serializers import serializer_types_map
 
-def parse_log_record_input(data):
+def parse_log_record_input(data: str):
     patterns = [
         re.compile(r'ocpp:([\w|\d]+):.+receive message\s*\[.+,.+,\s*\"(\w+)\"\s*,\s*(\{.+\})\s*]')
         # Add more patterns here to parse the input string
@@ -21,32 +22,42 @@ def parse_log_record_input(data):
 
 class DataTransferAPIView(APIView):
 
+    def _success_response_body(msg):
+        return {
+            'success': True,
+            'message': msg
+        }
+
+    def _failed_response_body(err_msg):
+        return {
+            'success': False,
+            'message': {
+                'error': err_msg
+            }
+        }
+
     def post(self, request, *args, **kwargs):
         try:
+            # Parse input and format data
             chargernum, keyword, content = parse_log_record_input(request.data)
-            # Choose correct serializer
-            serializer = serializer_types_map[keyword.lower()](data=content)
+            content = {'chargerNumber': chargernum, **json.loads(content)}
+            try:
+                # Choose correct serializer
+                keyword_serializer_clazz = serializer_types_map[keyword.lower()]
+            # No serializer is bound to the keyword
+            except KeyError as e:
+                msg = f'Unsupported: {keyword}'
+                loggers.error_file_logger.error(msg, exc_info=True)
+                return Response(self._failed_response_body(msg), status=status.HTTP_400_BAD_REQUEST)
+
+            serializer = keyword_serializer_clazz(data=content)
             # Validate and save to DB
             if serializer.is_valid():
                 serializer.save()
-                return Response({
-                    'success': True,
-                    'message': serializer.data
-                }, status=status.HTTP_201_CREATED)
+                return Response(self._success_response_body(serializer.data), status=status.HTTP_201_CREATED)
             else:
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        # No serializer is bound to the keyword
-        except KeyError as e:
-            msg = f'Unknown: {keyword}'
-            loggers.error_file_logger.error(msg, exc_info=True)
-            return Response({
-                'success': False,
-                'message': msg
-            }, status=status.HTTP_400_BAD_REQUEST)
-        except ValueError as e:
-            return Response({
-                'success': False,
-                'message': {
-                    'error': str(e),
-                }
-            }, status=status.HTTP_400_BAD_REQUEST)
+                return Response(self._failed_response_body(serializer.errors), status=status.HTTP_400_BAD_REQUEST)
+        
+        except Exception as e:
+            loggers.error_file_logger.error('Exception ', exc_info=True)
+            return Response(self._failed_response_body(str(e)), status=status.HTTP_400_BAD_REQUEST)
