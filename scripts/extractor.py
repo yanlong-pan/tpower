@@ -52,7 +52,7 @@ def _extract_ocpp_charger_num(line):
     except:
         return f'Ocpp charger number: Not found'
 
-def extract_content_with_keyword(keyword: str, raw_log_filepath, output_path, multithread_result=None):
+def extract_content_with_keyword_from_file(keyword: str, raw_log_filepath, output_path, multithread_result=None):
     is_success = True
     extracted_lines, total_lines = 0, 0
     # The former set simply stores content so that they can compare between each other,
@@ -127,7 +127,7 @@ def single_threaded_log_file_extractor():
     res = {}
     for keyword in sorted(keywords):    
         output_path = os.path.join(EXTRACTED_FILES_DIR_PATH, keyword.lower(), f'from_{raw_log_filename}')
-        r = extract_content_with_keyword(keyword, raw_log_filepath, output_path)
+        r = extract_content_with_keyword_from_file(keyword, raw_log_filepath, output_path)
         res[keyword.lower()] = r['data']
     return res
 
@@ -145,7 +145,7 @@ def multi_threaded_log_file_extractor():
 
     for param in parameters:
         # Create the target function for the thread
-        thread = threading.Thread(target=extract_content_with_keyword, args=param)  # Use args to pass parameters to the thread's target function
+        thread = threading.Thread(target=extract_content_with_keyword_from_file, args=param)  # Use args to pass parameters to the thread's target function
         threads.append(thread) 
         thread.start()
     # Wait for all threads to complete
