@@ -20,7 +20,7 @@ def parse_log_record_input(data: str):
     loggers.error_file_logger.error(f'Unsupported format: {data}')
     raise ValueError("Unsupported input format")
 
-class DataTransferAPIView(APIView):
+class ProcessChargerSentLogsAPIView(APIView):
 
     def _success_response_body(self, msg):
         return {
