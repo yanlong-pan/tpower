@@ -22,13 +22,13 @@ def parse_log_record_input(data: str):
 
 class DataTransferAPIView(APIView):
 
-    def _success_response_body(msg):
+    def _success_response_body(self, msg):
         return {
             'success': True,
             'message': msg
         }
 
-    def _failed_response_body(err_msg):
+    def _failed_response_body(self, err_msg):
         return {
             'success': False,
             'message': {
