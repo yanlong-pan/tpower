@@ -56,6 +56,7 @@ class DataTransferAPIView(APIView):
                 serializer.save()
                 return Response(self._success_response_body(serializer.data), status=status.HTTP_201_CREATED)
             else:
+                loggers.error_file_logger.error(serializer.errors, exc_info=True)
                 return Response(self._failed_response_body(serializer.errors), status=status.HTTP_400_BAD_REQUEST)
         
         except Exception as e:
