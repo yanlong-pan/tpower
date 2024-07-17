@@ -17,24 +17,22 @@ def parse_log_record_input(data: str):
         if match:
             return match.groups()
     # If no match is found for known patterns, then it means that the input format is not supported yet
-    loggers.error_file_logger.error(f'Unsupported format: {data}')
     raise ValueError("Unsupported input format")
 
+def api_success_response_body(msg):
+    return {
+        'success': True,
+        'message': msg
+    }
+
+def api_failed_response_body(err_msg):
+    return {
+        'success': False,
+        'message': {
+            'error': err_msg
+        }
+    }
 class ProcessChargerSentLogsAPIView(APIView):
-
-    def _success_response_body(self, msg):
-        return {
-            'success': True,
-            'message': msg
-        }
-
-    def _failed_response_body(self, err_msg):
-        return {
-            'success': False,
-            'message': {
-                'error': err_msg
-            }
-        }
 
     def post(self, request, *args, **kwargs):
         try:
@@ -48,17 +46,17 @@ class ProcessChargerSentLogsAPIView(APIView):
             except KeyError as e:
                 msg = f'Unsupported: {keyword}'
                 loggers.error_file_logger.error(msg, exc_info=True)
-                return Response(self._failed_response_body(msg), status=status.HTTP_400_BAD_REQUEST)
+                return Response(api_failed_response_body(msg), status=status.HTTP_400_BAD_REQUEST)
 
             serializer = keyword_serializer_clazz(data=content)
             # Validate and save to DB
             if serializer.is_valid():
                 serializer.save()
-                return Response(self._success_response_body(serializer.data), status=status.HTTP_201_CREATED)
+                return Response(api_success_response_body(serializer.data), status=status.HTTP_201_CREATED)
             else:
                 loggers.error_file_logger.error(serializer.errors, exc_info=True)
-                return Response(self._failed_response_body(serializer.errors), status=status.HTTP_400_BAD_REQUEST)
+                return Response(api_failed_response_body(serializer.errors), status=status.HTTP_400_BAD_REQUEST)
         
         except Exception as e:
             loggers.error_file_logger.error('Exception ', exc_info=True)
-            return Response(self._failed_response_body(str(e)), status=status.HTTP_400_BAD_REQUEST)
+            return Response(api_failed_response_body(str(e)), status=status.HTTP_400_BAD_REQUEST)
