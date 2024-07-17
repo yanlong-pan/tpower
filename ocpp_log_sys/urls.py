@@ -16,7 +16,9 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import include, path
 
+app_name = 'log_processor'
+
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include('log_processor.urls')),
+    path('', include(('log_processor.urls', 'log_processor'), namespace='log_processor')),
 ]
