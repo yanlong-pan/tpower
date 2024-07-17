@@ -25,6 +25,7 @@ class ChargerRequestBaseSerializer(serializers.Serializer, metaclass=ChargerRequ
 class DataTransferRequestSerializer(ChargerRequestBaseSerializer):
     vendorId = serializers.CharField(source='vendor_id')
     messageId = serializers.CharField(source='message_id')
+    data = serializers.CharField()
     class Meta:
         model = DataTransferRequest
         fields = ['vendorId', 'messageId', 'data']
