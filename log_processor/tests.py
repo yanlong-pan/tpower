@@ -3,6 +3,7 @@ from django.test import TestCase
 from django.urls import reverse
 from rest_framework import status
 
+from log_processor import errors
 from log_processor.views import api_failed_response_body
 from utilities import loggers
 
@@ -51,10 +52,10 @@ class ProcessChargerSentLogsAPIViewTests(TestCase):
 
     def test_process_metervalues_log_record_with_wrong_format(self):
         response = self._process_charger_sent_logs(METERVALUES_LOG_RECORD_WITH_UNSUPPORTED_REGEX_PATTERN)
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.status_code, status.HTTP_406_NOT_ACCEPTABLE)
         self.assertJSONEqual(
             response.content.decode('utf-8'),
-            api_failed_response_body("Unsupported input format")
+            api_failed_response_body(errors.ErrorMessage.UNSUPPORTED_INPUT_FORMAT.value)
         )
 
     def test_process_metervalues_log_record_with_unsupported_sampledvalue(self):
@@ -68,7 +69,7 @@ class ProcessChargerSentLogsAPIViewTests(TestCase):
                         "sampledValue": [
                             {
                                 "context": [
-                                '"Sample.Periodics\" is not a valid choice.'
+                                    '"Sample.Periodics\" is not a valid choice.'
                                 ]
                             },
                             {}
@@ -99,5 +100,5 @@ class ProcessChargerSentLogsAPIViewTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertJSONEqual(
             response.content.decode('utf-8'),
-            api_failed_response_body("Unsupported: Authorize")
+            api_failed_response_body(f'{errors.ErrorMessage.UNSUPPORTED_CHARGER_SENT_REQUEST_TYPE.value}: Authorize')
         )

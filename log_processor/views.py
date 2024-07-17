@@ -2,8 +2,9 @@ import json
 import re
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import status, serializers
 
+from log_processor import errors
 from utilities import loggers
 from .serializers import serializer_types_map
 
@@ -17,7 +18,7 @@ def parse_log_record_input(data: str):
         if match:
             return match.groups()
     # If no match is found for known patterns, then it means that the input format is not supported yet
-    raise ValueError("Unsupported input format")
+    raise errors.CurrentlyUnSupported(errors.ErrorMessage.UNSUPPORTED_INPUT_FORMAT.value)
 
 def api_success_response_body(msg):
     return {
@@ -44,11 +45,11 @@ class ProcessChargerSentLogsAPIView(APIView):
                 keyword_serializer_clazz = serializer_types_map[keyword.lower()]
             # No serializer is bound to the keyword
             except KeyError as e:
-                msg = f'Unsupported: {keyword}'
+                msg = f'{errors.ErrorMessage.UNSUPPORTED_CHARGER_SENT_REQUEST_TYPE.value}: {keyword}'
                 loggers.error_file_logger.error(msg, exc_info=True)
                 return Response(api_failed_response_body(msg), status=status.HTTP_400_BAD_REQUEST)
 
-            serializer = keyword_serializer_clazz(data=content)
+            serializer: serializers.ModelSerializer = keyword_serializer_clazz(data=content)
             # Validate and save to DB
             if serializer.is_valid():
                 serializer.save()
@@ -56,7 +57,11 @@ class ProcessChargerSentLogsAPIView(APIView):
             else:
                 loggers.error_file_logger.error(serializer.errors, exc_info=True)
                 return Response(api_failed_response_body(serializer.errors), status=status.HTTP_400_BAD_REQUEST)
-        
-        except Exception as e:
-            loggers.error_file_logger.error('Exception ', exc_info=True)
-            return Response(api_failed_response_body(str(e)), status=status.HTTP_400_BAD_REQUEST)
+
+        except errors.CurrentlyUnSupported as e:
+            loggers.error_file_logger.error(e.message, exc_info=True)
+            return Response(api_failed_response_body(e.message), status=status.HTTP_406_NOT_ACCEPTABLE)
+
+        except:
+            loggers.error_file_logger.error(errors.ErrorMessage.UNHANDLED_EXCEPTION.value, exc_info=True)
+            return Response(errors.ErrorMessage.INTERNAL_SERVER_ERROR.value, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
