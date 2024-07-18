@@ -153,3 +153,5 @@ cython_debug/
 
 .lh**
 .vscode**
+statics/tmp**
+log_processor/migrations**

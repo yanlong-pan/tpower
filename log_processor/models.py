@@ -1,7 +1,9 @@
+from datetime import datetime
+from typing import List
 from django.db import models
 
-# Create your models here.
 from django.db import models
+from pydantic import BaseModel, field_validator
 
 from log_processor import validators
 
@@ -89,17 +91,12 @@ class DataTransferRequest(ChargerSentRequestMixin, models.Model):
     vendor_id = models.CharField(max_length=255)
     message_id = models.CharField(max_length=50, blank=True)
     data = models.TextField(blank=True)
+    raw_data = models.TextField()
 
-class MeterValuesRequest(ChargerSentRequestMixin, models.Model):
+class SampledMeterValue(ChargerSentRequestMixin, models.Model):
+    timestamp = models.DateTimeField()
     connector_id = models.IntegerField()
     transaction_id = models.IntegerField()
-
-class MeterValue(models.Model):
-    timestamp = models.DateTimeField()
-    operation = models.ForeignKey(MeterValuesRequest, on_delete=models.CASCADE, related_name='meter_value', null=True, blank=True)
-
-class SampledValue(models.Model):
-    meter_value = models.ForeignKey(MeterValue, on_delete=models.CASCADE, related_name='sampled_values', null=True, blank=True)
     value = models.CharField(
         max_length=255,
         validators=[validators.decimal_or_signed_data],
@@ -140,5 +137,7 @@ class SampledValue(models.Model):
         default=UnitOfMeasure.WH,
         blank=True,
     )
+    raw_data = models.TextField()
+    
 
 

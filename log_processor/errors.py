@@ -5,6 +5,7 @@ class ErrorMessage(Enum):
     UNSUPPORTED_CHARGER_SENT_REQUEST_TYPE = "Unsupported charger sent request type"
     UNHANDLED_EXCEPTION = "Unhandled exception"
     INTERNAL_SERVER_ERROR = "Internal server error"
+    NOT_CONFIGURED = "Not configured"
 
 class CurrentlyUnSupported(Exception):
     def __init__(self, message):
