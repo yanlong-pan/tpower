@@ -1,4 +1,5 @@
 import json
+import re
 import threading
 import os
 
@@ -128,7 +129,7 @@ def single_threaded_log_file_extractor():
     for keyword in sorted(keywords):    
         output_path = os.path.join(EXTRACTED_FILES_DIR_PATH, keyword.lower(), f'from_{raw_log_filename}')
         r = extract_content_with_keyword_from_file(keyword, raw_log_filepath, output_path)
-        res[keyword.lower()] = r['data']
+        res[keyword.lower()] = r
     return res
 
 # Concurrently process all the keywords in a file
@@ -156,6 +157,37 @@ def multi_threaded_log_file_extractor():
 if __name__ == "__main__":
     # r = single_threaded_log_file_extractor()
     r = multi_threaded_log_file_extractor()
-    print(json.dumps(r, indent=4))
-    pass
-    
+
+    def add_ocpp_num(input_json):
+        key = 'unique_example_with_charger_num'
+        
+        # Handle both list of dictionaries and single dictionary
+        if isinstance(input_json, list):
+            for item in input_json:
+                if isinstance(item, dict):
+                    process_dictionary(item, key)
+        elif isinstance(input_json, dict):
+            process_dictionary(input_json, key)
+        
+        return input_json
+
+    def process_dictionary(dictionary, key):
+        """Process a dictionary to integrate Ocpp charger numbers."""
+        for value in dictionary.values():
+            if isinstance(value, dict) and key in value:
+                updated_examples = []
+                for example in value[key]:
+                    # Split JSON obj and charger number
+                    match = re.match(r'^(.*?}), Ocpp charger number: (\w+)$', example)
+                    if match:
+                        json_part = match.group(1)
+                        charger_number = match.group(2)
+                        # Parse JSON obj and add charger number
+                        json_object = json.loads(json_part)
+                        json_object['charger_number'] = charger_number
+                        json_object['original'] = json_part
+                        updated_examples.append(json_object)
+                value[key] = updated_examples
+
+    with open(os.path.join(root_dir, 'output.json'), 'w', encoding='utf-8') as f:
+        json.dump(add_ocpp_num(r), f, indent=4, ensure_ascii=False)
