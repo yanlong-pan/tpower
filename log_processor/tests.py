@@ -64,17 +64,8 @@ class ProcessChargerSentLogsAPIViewTests(TestCase):
         self.assertJSONEqual(
             response.content.decode('utf-8'),
             api_failed_response_body({
-                "meterValue": [
-                    {
-                        "sampledValue": [
-                            {
-                                "context": [
-                                    '"Sample.Periodics\" is not a valid choice.'
-                                ]
-                            },
-                            {}
-                        ]
-                    }
+                "context": [
+                    '"Sample.Periodics\" is not a valid choice.'
                 ]
             })
         )
@@ -97,8 +88,8 @@ class ProcessChargerSentLogsAPIViewTests(TestCase):
 
     def test_process_log_record_with_unsupported_keyword(self):
         response = self._process_charger_sent_logs(LOG_RECORD_WITH_UNSUPPORTED_KEYWORD)
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.status_code, status.HTTP_406_NOT_ACCEPTABLE)
         self.assertJSONEqual(
             response.content.decode('utf-8'),
-            api_failed_response_body(f'{errors.ErrorMessage.UNSUPPORTED_CHARGER_SENT_REQUEST_TYPE.value}: Authorize')
+            api_failed_response_body(f'{errors.ErrorMessage.NOT_CONFIGURED.value}: Authorize')
         )

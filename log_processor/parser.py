@@ -101,7 +101,7 @@ def parse_input(data: str) -> ParserOutput:
             try:
                 parser: BaseParser = CHARGER_REQUEST_PARSER_MAP[r.request_type]
             except KeyError:
-                raise errors.CurrentlyUnSupported(ErrorMessage.NOT_CONFIGURED.value)
+                raise errors.CurrentlyUnSupported(ErrorMessage.NOT_CONFIGURED.value + f': {match.group(2)}')
             return parser.parsed(r)
     # If no match is found for known patterns, then it means that the input format is not supported yet
     raise errors.CurrentlyUnSupported(ErrorMessage.UNSUPPORTED_INPUT_FORMAT.value)
