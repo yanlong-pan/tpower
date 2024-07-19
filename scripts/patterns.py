@@ -28,7 +28,10 @@ common_comparable_pattern = ComparablePattern(
 COMPARABLE_KEYWORD_CONTENT_MAP = {
     'authorize': [common_comparable_pattern],
     'bootnotification': [common_comparable_pattern],
-    'datatransfer': [common_comparable_pattern],
+    'datatransfer': [ComparablePattern(
+        pattern=JSON_CONTENT_AFTER_THIRD_ARRAY_ITEM,
+        is_identical = comparator.datatransfer_content_comparator
+    )],
     'heartbeat': [common_comparable_pattern],
     'metervalues': [common_comparable_pattern],
     'starttransaction': [common_comparable_pattern],
