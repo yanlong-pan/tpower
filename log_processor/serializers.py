@@ -8,7 +8,7 @@ class DataTransferRequestSerializer(serializers.ModelSerializer):
     data = serializers.CharField(allow_blank=True)
     class Meta:
         model = DataTransferRequest
-        fields = ['vendorId', 'messageId', 'data']
+        fields = ['charger_number', 'vendorId', 'messageId', 'data', 'raw_data']
 
     def create(self, validated_data):
         data_transfer_request = DataTransferRequest.objects.create(**validated_data)
