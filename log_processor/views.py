@@ -42,4 +42,4 @@ class ProcessChargerSentLogsAPIView(APIView):
 
         except:
             loggers.error_file_logger.error(errors.ErrorMessage.UNHANDLED_EXCEPTION.value, exc_info=True)
-            return Response(errors.ErrorMessage.INTERNAL_SERVER_ERROR.value, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(api_failed_response_body(errors.ErrorMessage.INTERNAL_SERVER_ERROR.value), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
