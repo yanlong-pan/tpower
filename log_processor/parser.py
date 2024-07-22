@@ -82,21 +82,28 @@ CHARGER_REQUEST_PARSER_MAP = {
     'metervalues': BaseParser(steps=[add_charger_number_and_raw_data_to_content, flatten_meter_value]),
 }
 
+class ParserPattern(BaseModel):
+    pattern: re.Pattern
+    build_parser_input: Callable[[tuple], ParserStepIO]
 
 def parse_input(data: str) -> ParserOutput:
-    patterns = [
-        re.compile(r'ocpp:([\w|\d]+):.+receive message\s*\[.+,.+,\s*\"(\w+)\"\s*,\s*(\{.+\})\s*]')
-        # Add more patterns here to parse the input string
-    ]
-    for p in patterns:
-        match = p.search(data)
-        if match:
-            r = ParserStepIO(**{
-                'charger_number': match.group(1),
-                'request_type': match.group(2).lower(),
-                'content': [{'json_str': match.group(3)}],
+    parser_patterns: List[ParserPattern] = [
+        ParserPattern(
+            pattern=re.compile(r'ocpp:([\w|\d]+):.+receive message\s*\[.+,.+,\s*\"(\w+)\"\s*,\s*(\{.+\})\s*]'),
+            build_parser_input=lambda x,y,z: ParserStepIO(**{
+                'charger_number': x,
+                'request_type': y.lower(),
+                'content': [{'json_str': z}],
                 'raw_data': data
             })
+        )
+        
+        # Add more patterns here to parse the input string
+    ]
+    for pp in parser_patterns:
+        match = pp.pattern.search(data)
+        if match:
+            r = pp.build_parser_input(*match.groups())
             try:
                 parser: BaseParser = CHARGER_REQUEST_PARSER_MAP[r.request_type]
             except KeyError:
