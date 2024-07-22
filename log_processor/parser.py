@@ -35,10 +35,9 @@ class BaseParser(BaseModel):
         return ParserOutput(parsed_models=r.content, serializer_clz=serializer_clz)
 
 def add_charger_number_and_raw_data_to_content(data: ParserStepIO) -> ParserStepIO:
-    # 将数据转换为字典
     data_dict = data.model_dump()
 
-    # 更新 content 字段
+    # Update content field
     data_dict['content'] = [{
         'charger_number': data.charger_number,
         **json.loads(data.content[0]['json_str']),
