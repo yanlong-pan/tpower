@@ -2,6 +2,24 @@ import json
 import re
 from typing import Callable, List
 
+def extract_structure(json_data):
+    if isinstance(json_data, dict):
+        return {key: extract_structure(value) for key, value in json_data.items()}
+    elif isinstance(json_data, list):
+        # Create a set of unique structures for list elements
+        element_structures = set(tuple(extract_structure(element).items()) for element in json_data)
+        # Convert set of tuples back to list of dicts
+        return [dict(structure) for structure in element_structures]
+    else:
+        return None  # Only care about structure, not values
+
+def get_unique_structures(list_data):
+    structures = [extract_structure(item) for item in list_data]
+    unique_structures = []
+    for structure in structures:
+        if structure not in unique_structures:
+            unique_structures.append(structure)
+    return unique_structures
 
 def compare_json_keys(json1, json2) -> bool:
     if isinstance(json1, dict) and isinstance(json2, dict):
@@ -14,17 +32,20 @@ def compare_json_keys(json1, json2) -> bool:
                 return False
         return True
     elif isinstance(json1, list) and isinstance(json2, list):
-        # Compare structure of lists
-        if not json1 and not json2:
-            return True  # Both lists are empty
-        if (json1 and not json2) or (not json1 and json2):
-            return False  # One list is empty and the other is not
-        # Compare the structure of the first element in each list
-        # As we assume the structures of items inside the same list are identical
-        return compare_json_keys(json1[0], json2[0])
-    else:
-        # For non-dict and non-list types, return True (since only keys are compared)
+        # Extract unique structures from both lists
+        unique_structures1 = get_unique_structures(json1)
+        unique_structures2 = get_unique_structures(json2)
+        # Compare the unique structures
+        if len(unique_structures1) != len(unique_structures2):
+            return False
+        for structure1 in unique_structures1:
+            if structure1 not in unique_structures2:
+                return False
         return True
+    elif type(json1) == type(json2):
+            return True
+    else:
+        return False
 
 def compare_value_structure(json1: dict, json2: dict, key, str_comparators: List[Callable[[str, str], bool]]) -> bool:
     if key in json1 and key in json2:
