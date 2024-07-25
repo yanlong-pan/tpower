@@ -1,13 +1,13 @@
 from datetime import datetime
-from typing import List
+from enum import Enum
+from typing import Optional, Sequence
 from django.db import models
 
 from django.db import models
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel
+from django_pydantic_field import SchemaField
 
-from log_processor import validators
-
-class ReadingContext(models.TextChoices):
+class ReadingContext(str, Enum):
     INTERRUPTION_BEGIN = 'Interruption.Begin' # Value taken at start of interruption'
     INTERRUPTION_END = 'Interruption.End' # Value taken when resuming after interruption'
     OTHER = 'Other' # Value for any other situations'
@@ -17,11 +17,11 @@ class ReadingContext(models.TextChoices):
     TRANSACTION_END = 'Transaction.End' # Value taken at end of transaction'
     TRIGGER = 'Trigger' # Value taken in response to a TriggerMessage.req'
 
-class ValueFormat(models.TextChoices):
+class ValueFormat(str, Enum):
     RAW = 'Raw' # Data is to be interpreted as integer/decimal numeric data.'
     SIGNEDDATA = 'SignedData' # Data is represented as a signed binary data block, encoded as hex data'
 
-class Measurand(models.TextChoices):
+class Measurand(str, Enum):
     CURRENT_EXPORT = 'Current.Export' # Instantaneous current flow from EV'
     CURRENT_IMPORT = 'Current.Import' # Instantaneous current flow to EV'
     CURRENT_OFFERED = 'Current.Offered' # Maximum current offered to EV'
@@ -45,7 +45,7 @@ class Measurand(models.TextChoices):
     TEMPERATURE = 'Temperature' # Temperature reading inside Charge Point.
     VOLTAGE = 'Voltage' # Instantaneous AC RMS supply voltage
 
-class Phase(models.TextChoices):
+class Phase(str, Enum):
     L1 = 'L1' # Measured on L1
     L2 = 'L2' # Measured on L2
     L3 = 'L3' # Measured on L3
@@ -57,14 +57,14 @@ class Phase(models.TextChoices):
     L2_L3 = 'L2-L3' # Measured between L2 and L3
     L3_L1 = 'L3-L1' # Measured between L3 and L1
 
-class Location(models.TextChoices):
+class Location(str, Enum):
     BODY = 'Body' # Measurement inside body of Charge Point (e.g. Temperature)
     CABLE = 'Cable' # Measurement taken from cable between EV and Charge Point
     EV = 'EV' # Measurement taken by EV
     INLET = 'Inlet' # Measurement at network (“grid”) inlet connection
     OUTLET = 'Outlet' # Measurement at a Connector. Default value
 
-class UnitOfMeasure(models.TextChoices):
+class UnitOfMeasure(str, Enum):
     WH = 'Wh' # Watt-hours (energy). Default.
     KWH = 'kWh' # kiloWatt-hours (energy).
     VARH = 'varh' # Var-hours (reactive energy).
@@ -82,6 +82,17 @@ class UnitOfMeasure(models.TextChoices):
     K = 'K' # Degrees Kelvin (temperature).
     PERCENT = 'Percent' # Percentage.
 
+class SampledValue(BaseModel):
+    timestamp: datetime
+    value: str
+    context: Optional[ReadingContext] = ReadingContext.SAMPLE_PERIODIC
+    format: Optional[ValueFormat] = ValueFormat.RAW
+    measurand: Optional[Measurand] = Measurand.ENERGY_ACTIVE_EXPORT_REGISTER
+    phase: Optional[Phase] = None
+    location: Optional[Location] = Location.OUTLET
+    unit: Optional[UnitOfMeasure] = UnitOfMeasure.WH
+
+# ORMs
 class ChargerSentRequestMixin(models.Model):
     charger_number = models.CharField(max_length=64)
     class Meta:
@@ -94,49 +105,13 @@ class DataTransferRequest(ChargerSentRequestMixin, models.Model):
     raw_data = models.TextField()
 
 class SampledMeterValue(ChargerSentRequestMixin, models.Model):
-    timestamp = models.DateTimeField()
     connector_id = models.IntegerField()
     transaction_id = models.IntegerField()
-    value = models.CharField(
-        max_length=255,
-        validators=[validators.decimal_or_signed_data],
-        help_text='Value as a "Raw" (decimal) number or "SignedData"'
-    )
-    context = models.CharField(
-        max_length=32,
-        choices=ReadingContext.choices,
-        default=ReadingContext.SAMPLE_PERIODIC,
-        blank=True,
-    )
-    format = models.CharField(
-        max_length=16,
-        choices=ValueFormat.choices,
-        default=ValueFormat.RAW,
-        blank=True,
-    )    
-    measurand = models.CharField(
-        max_length=32,
-        choices=Measurand.choices,
-        default=Measurand.ENERGY_ACTIVE_EXPORT_REGISTER,
-        blank=True,
-    )
-    phase = models.CharField(
-        max_length=8,
-        choices=Phase.choices,
-        blank=True,
-    )
-    location = models.CharField(
-        max_length=8,
-        choices=Location.choices,
-        default=Location.OUTLET,
-        blank=True,
-    )
-    unit = models.CharField(
-        max_length=16,
-        choices=UnitOfMeasure.choices,
-        default=UnitOfMeasure.WH,
-        blank=True,
-    )
+
+    L1: Sequence[SampledValue] = SchemaField()
+    L2: Sequence[SampledValue] = SchemaField()
+    L3: Sequence[SampledValue] = SchemaField()
+
     raw_data = models.TextField()
     
 
