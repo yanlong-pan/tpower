@@ -23,17 +23,20 @@ def extract_keywords_from_log(log_file_path):
         with open(log_file_path, 'r') as log_file:
             keywords_in_log = set()
             for line in log_file:
-                if CHARGER_SENT_MESSAGE_IDENTIFIER in line:
-                    # walk through all known keyword patterns
-                    for keyword_pattern in patterns.keywords:
-                        match = keyword_pattern.search(line)
-                        if match:
-                            keyword = match.group(1)
-                            if keyword and keyword.isalpha():  # Check if the keyword is a word (contains only letters)
-                                keywords_in_log.add(keyword)  # Will be used to match raw data, so we don't need to format it
+                for identifier in patterns.ChargerSentMessageIdentifier:
+                    if identifier in line:
+                        # walk through all known keyword patterns
+                        for keyword_pattern in patterns.KEYWORD_PATTERNS[identifier]:
+                            match = keyword_pattern.search(line)
+                            if match:
+                                keyword = match.group(1)
+                                if keyword and keyword.isalpha():  # Check if the keyword is a word (contains only letters)
+                                    keywords_in_log.add(keyword)  # Will be used to match raw data, so we don't need to format it
 
-                            # stop propagating once found a match
-                            break
+                                # stop propagating once found a match
+                                break
+                        # No need to go through more identifiers as an identifier should be exclusive
+                        break
         
     except FileNotFoundError:
         print(f"Error: File {log_file_path} not found.")
@@ -68,27 +71,32 @@ def extract_content_with_keyword_from_file(keyword: str, raw_log_filepath, outpu
         for line in file:
             total_lines += 1
             try:
-                if CHARGER_SENT_MESSAGE_IDENTIFIER in line and keyword in line:
-                    output_file.write(line)
-                    extracted_lines += 1
-                    # extract content examples having unique data structures
-                    for comparable_content_pattern in comparable_content_patterns:
-                        match = comparable_content_pattern.pattern.search(line)
-                        if match:
-                            content = match.group(1)
-                            if content:
-                                if not unique_structure_content_examples:
-                                    unique_structure_content_examples.add(content)
-                                    unique_example_with_charger_num.add(f'{content}, {_extract_ocpp_charger_num(line)}')
-                                else:
-                                    is_unique = True
-                                    for item in unique_structure_content_examples:
-                                        is_unique = not comparable_content_pattern.is_identical(content, item) and is_unique
-                                    if is_unique:
+                for identifier in patterns.ChargerSentMessageIdentifier:
+                    if identifier in line and keyword in line:
+                        output_file.write(line)
+                        extracted_lines += 1
+                        # extract content examples having unique data structures
+                        for comparable_content_pattern in comparable_content_patterns:
+                            if comparable_content_pattern.identifier != identifier:
+                                continue
+                            match = comparable_content_pattern.pattern.search(line)
+                            if match:
+                                content = match.group(1)
+                                if content:
+                                    if not unique_structure_content_examples:
                                         unique_structure_content_examples.add(content)
                                         unique_example_with_charger_num.add(f'{content}, {_extract_ocpp_charger_num(line)}')
-                            # Stop the iteration once a match is found no matter if it's unique
-                            break
+                                    else:
+                                        is_unique = True
+                                        for item in unique_structure_content_examples:
+                                            is_unique = not comparable_content_pattern.is_identical(content, item) and is_unique
+                                        if is_unique:
+                                            unique_structure_content_examples.add(content)
+                                            unique_example_with_charger_num.add(f'{content}, {_extract_ocpp_charger_num(line)}')
+                                # Stop the iteration once a match is found no matter if it's unique
+                                break
+                        # No need to go through more identifiers as an identifier should be exclusive
+                        break
             except:
                 is_success = False
                 r = {
@@ -176,10 +184,12 @@ if __name__ == "__main__":
         for value in dictionary.values():
             if isinstance(value, dict) and key in value:
                 updated_examples = []
+                count = 0
                 for example in value[key]:
                     # Split JSON obj and charger number
-                    match = re.match(r'^(.*?}), Ocpp charger number: (\w+)$', example)
+                    match = re.match(r'^(.*?}), Ocpp charger number: ([\w\s]+)$', example)
                     if match:
+                        count += 1
                         json_part = match.group(1)
                         charger_number = match.group(2)
                         # Parse JSON obj and add charger number
@@ -187,7 +197,10 @@ if __name__ == "__main__":
                         json_object['charger_number'] = charger_number
                         json_object['original'] = json_part
                         updated_examples.append(json_object)
-                value[key] = updated_examples
+                value[key] = {
+                    'count': count, # count the number of unique examples
+                    'formatted_examples': updated_examples
+                }
 
     with open(os.path.join(root_dir, 'output.json'), 'w', encoding='utf-8') as f:
         json.dump(add_ocpp_num(r), f, indent=4, ensure_ascii=False)

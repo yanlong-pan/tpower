@@ -47,6 +47,9 @@ def compare_json_keys(json1, json2) -> bool:
     else:
         return False
 
+def compare_json_str(json_str1: str, json_str2: str) -> bool:
+    return compare_json_keys(json.loads(json_str1), json.loads(json_str2))
+
 def compare_value_structure(json1: dict, json2: dict, key, str_comparators: List[Callable[[str, str], bool]]) -> bool:
     if key in json1 and key in json2:
         # Both have value
