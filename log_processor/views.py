@@ -1,3 +1,5 @@
+import json
+from django.core.exceptions import ValidationError
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -39,7 +41,12 @@ class ProcessChargerSentLogsAPIView(APIView):
         except errors.CurrentlyUnSupported as e:
             loggers.error_file_logger.error(e.message, exc_info=True)
             return Response(api_failed_response_body(e.message), status=status.HTTP_406_NOT_ACCEPTABLE)
-
+        except ValidationError as e:
+            try:
+                msg = [json.loads(x) for x in e.messages]
+            except (json.JSONDecodeError, TypeError):
+                msg = e.messages
+            return Response(api_failed_response_body(msg), status=status.HTTP_400_BAD_REQUEST)
         except:
             loggers.error_file_logger.error(errors.ErrorMessage.UNHANDLED_EXCEPTION.value, exc_info=True)
             return Response(api_failed_response_body(errors.ErrorMessage.INTERNAL_SERVER_ERROR.value), status=status.HTTP_500_INTERNAL_SERVER_ERROR)

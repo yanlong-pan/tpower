@@ -90,3 +90,14 @@ def datatransfer_content_comparator(s1: str, s2: str):
         str_comparators = [compare_query_strs, compare_json_string]
         return compare_value_structure(json1, json2, 'data', str_comparators)
     return False
+
+def shallow_compare_two_dicts(dct1: dict, dct2: dict, keys_to_ignore:List[str]=[]) -> bool:
+    if not keys_to_ignore:
+        return dct1 == dct2
+
+    # Remove the keys to ignore from both dictionaries
+    filtered_dct1 = {k: v for k, v in dct1.items() if k not in keys_to_ignore}
+    filtered_dct2 = {k: v for k, v in dct2.items() if k not in keys_to_ignore}
+
+    # Compare the filtered dictionaries
+    return filtered_dct1 == filtered_dct2
