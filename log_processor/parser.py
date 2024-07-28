@@ -63,6 +63,9 @@ def flatten_meter_value(data: ParserStepIO) -> ParserStepIO:
     l_l_phases = {"L1-L2", "L2-L3", "L3-L1"}
     all_phases = l_phases.union(l_n_phases).union(l_l_phases)
     valid_phases = {
+        frozenset({"L1",}),
+        frozenset({"L2",}),
+        frozenset({"L3",}),
         frozenset(l_phases),
         frozenset(l_n_phases),
         frozenset(l_l_phases),
@@ -86,16 +89,24 @@ def flatten_meter_value(data: ParserStepIO) -> ParserStepIO:
     for meter_value in meter_values:
         timestamp = meter_value["timestamp"]
 
-        # Check phase conditions
-        phases = {sampled_value.get("phase") for sampled_value in meter_value["sampledValue"] if sampled_value.get("phase") in all_phases}
+        # Initialize dictionaries to store phases and target_phases for each unit
+        phases_dict = {unit: set() for unit in valid_units}
+        target_phases_dict = {unit: set() for unit in valid_units}
 
-        # Determine the target phases based on the present phases in the data
-        if not phases:
-            target_phases = {None}
-        elif frozenset(phases) in valid_phases:
-            target_phases = phases
-        else:
-            raise ValidationError("Invalid phase configuration in sampled values")
+        # Populate phases and target_phases for each unit
+        for sampled_value in meter_value["sampledValue"]:
+            unit = sampled_value.get("unit")
+            phase = sampled_value.get("phase")
+            if not phase or phase in all_phases:
+                phases_dict[unit].add(phase)
+
+        for unit, phases in phases_dict.items():
+            if not phases - {None}:
+                target_phases_dict[unit] = {None}
+            elif None in phases or frozenset(phases) in valid_phases:
+                target_phases_dict[unit] = phases
+            else:
+                raise ValidationError(f"Invalid phase configuration in sampled values for unit {unit}, which only contains data for phases: {phases}")
 
         # Initialize a dictionary to store values for each phase
         phase_values = phase_values = {phase: {unit: [] for unit in valid_units} for phase in l_phases}
@@ -104,25 +115,20 @@ def flatten_meter_value(data: ParserStepIO) -> ParserStepIO:
         for sampled_value in meter_value["sampledValue"]:
             value = float(sampled_value["value"])
             phase = sampled_value.get("phase")
-            unit = sampled_value.get("unit", models.UnitOfMeasure.WH.value)
-            context = sampled_value.get("context", models.ReadingContext.SAMPLE_PERIODIC.value)
-            format = sampled_value.get("format", models.ValueFormat.RAW.value)
-            measurand = sampled_value.get("measurand", models.Measurand.ENERGY_ACTIVE_EXPORT_REGISTER.value)
-            location = sampled_value.get("location", models.Location.OUTLET.value)
-            location = sampled_value.get("location", models.Location.OUTLET.value)
+            unit = sampled_value.get("unit")
             sampled_value_with_timestamp = {
                 "timestamp": timestamp,
                 "value": value,
-                "context": context,
-                "format": format,
-                "measurand": measurand,
+                "context": sampled_value.get("context"),
+                "format": sampled_value.get("format"),
+                "measurand": sampled_value.get("measurand"),
                 "phase": phase,
-                "location": location,
+                "location": sampled_value.get("location"),
                 "unit": unit,
             }
 
-            if unit in valid_units and phase in target_phases and value > 0:
-                # When phase is absent, the measured value is interpreted as an overall value. 默认放入L1
+            if unit in valid_units and phase in target_phases_dict[unit] and value > 0:
+                # When phase is absent, the measured value is interpreted as an overall value. Default to L1
                 phase_values[phase[:2] if phase else "L1"][unit].append(sampled_value_with_timestamp)
 
         for unit, d in phase_values["L1"].items():
