@@ -48,8 +48,6 @@ def add_charger_number_and_raw_data_to_content(data: ParserStepIO) -> ParserStep
     return ParserStepIO(**data_dict)
 
 def flatten_meter_value(data: ParserStepIO) -> ParserStepIO:
-    def _diff_type_sample_values(to_compare: dict, values: List[dict], ignores: List[str] = ["value", "phase"]) -> List[dict]:
-        return [v for v in values if not comparator.shallow_compare_two_dicts(v, to_compare, ignores)]
     def _same_type_sample_values(to_compare: dict, values: List[dict], ignores: List[str] = ["value", "phase"]) -> List[dict]:
         return [v for v in values if comparator.shallow_compare_two_dicts(v, to_compare, ignores)]
 
@@ -80,12 +78,9 @@ def flatten_meter_value(data: ParserStepIO) -> ParserStepIO:
         "connector_id": connector_id,
         "transaction_id": transaction_id,
         "raw_data": content['raw_data'],
-        "L1": {unit: [] for unit in valid_units},
-        "L2": {unit: [] for unit in valid_units},
-        "L3": {unit: [] for unit in valid_units},
     }
-    # for phase in l_phases:
-    #     merged_result[phase] = {phase: {unit: []} for phase in l_phases for unit in valid_units}
+    for phase in l_phases:
+        merged_result[phase] = {unit: [] for unit in valid_units}
 
     # Iterate through each meterValue
     for meter_value in meter_values:
@@ -132,31 +127,32 @@ def flatten_meter_value(data: ParserStepIO) -> ParserStepIO:
 
         for unit, d in phase_values["L1"].items():
             for phase_value in d:
-                # 如果存在 overall 项
+                # If there is an overall item
                 if not phase_value.get("phase"):
-                    # L1保留 overall项
+                    # L1 retains the overall item
                     merged_result["L1"][unit].append(phase_value)
-                # 如果不是 overall 项，且未保过 存同类项，则需要检查是单相还是三相
+                # If it is not an overall item and there is no same type item, check whether it is single-phase or three-phase
                 elif len(_same_type_sample_values(phase_value, merged_result["L1"][unit])) == 0:
-                        # 如果后两相都存在值，则为三相
-                        l2_same_type_sample_values = _same_type_sample_values(phase_value, phase_values["L2"][unit])
-                        l3_same_type_sample_values = _same_type_sample_values(phase_value, phase_values["L3"][unit])
-                        if len(l2_same_type_sample_values) > 0 and len(l3_same_type_sample_values) > 0:
-                            merged_result["L1"][unit].append(phase_value)
-                            merged_result["L2"][unit].extend(l2_same_type_sample_values)
-                            merged_result["L3"][unit].extend(l3_same_type_sample_values)
-                        # 如果后两相都为空, 则为单相
-                        elif len(l2_same_type_sample_values) == 0 and len(l3_same_type_sample_values) == 0:
-                            merged_result["L1"][unit].append(phase_value)
-                        else:
-                            raise ValidationError(f"Invalid data format: {phase_value["measurand"]} should either be a single-phase or triphase")
+                    # If both of the next two phases have values, it is three-phase
+                    l2_same_type_sample_values = _same_type_sample_values(phase_value, phase_values["L2"][unit])
+                    l3_same_type_sample_values = _same_type_sample_values(phase_value, phase_values["L3"][unit])
+                    if len(l2_same_type_sample_values) > 0 and len(l3_same_type_sample_values) > 0:
+                        merged_result["L1"][unit].append(phase_value)
+                        merged_result["L2"][unit].extend(l2_same_type_sample_values)
+                        merged_result["L3"][unit].extend(l3_same_type_sample_values)
+                    # If both of the next two phases are empty, it is single-phase
+                    elif len(l2_same_type_sample_values) == 0 and len(l3_same_type_sample_values) == 0:
+                        merged_result["L1"][unit].append(phase_value)
+                    else:
+                        raise ValidationError(f"Invalid data format: {phase_value['measurand']} should either be a single-phase or triphase")
 
         for phase in ["L2", "L3"]:
             for unit, d in phase_values[phase].items():
-                # 如果L1中没有，则加到L1
+                # If it is not in L1, add it to L1
                 for phase_value in d:
                     if not _same_type_sample_values(phase_value, merged_result["L1"][unit]):
                         merged_result["L1"][unit].append(phase_value)
+
 
         # Merge the phase values into the result
         for phase in l_phases:
