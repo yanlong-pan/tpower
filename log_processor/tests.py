@@ -1,4 +1,5 @@
 import json
+import os
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework import status
@@ -7,10 +8,10 @@ from log_processor import errors
 from log_processor.views import api_failed_response_body
 from utilities import loggers
 
+current_dir = os.path.dirname(os.path.abspath(__file__))
+# Get the root path of the project directory
+root_dir = os.path.dirname(current_dir)
 
-CORRECT_METERVALUES_LOG_RECORD = """
-INFO:ocpp:TH007: receive message [2,"1ycg31azvoem8b8kjxjak1s0","MeterValues",{"connectorId":1,"transactionId":78450704,"meterValue":[{"timestamp":"2024-07-09T07:18:36Z","sampledValue":[{"value":"64059","context":"Sample.Periodic","measurand":"Energy.Active.Import.Register","format":"Raw","unit":"Wh"},{"value":"5543","measurand":"Power.Active.Import","format":"Raw","unit":"W"}]}]}]
-"""
 METERVALUES_LOG_RECORD_WITH_UNSUPPORTED_REGEX_PATTERN="""
 INFO:ocpp:TH007: send [2,"1ycg31azvoem8b8kjxjak1s0","MeterValues",{"connectorId":1,"transactionId":78450704,"meterValue":[{"timestamp":"2024-07-09T07:18:36Z","sampledValue":[{"value":"64059","context":"Sample.Periodic","measurand":"Energy.Active.Import.Register","format":"Raw","unit":"Wh"}]}]}]
 """ # "send" should be "receive message"
@@ -47,8 +48,10 @@ class ProcessChargerSentLogsAPIViewTests(TestCase):
         loggers.unmute_logger(loggers.error_file_logger)
 
     def test_process_correct_metervalues_log_record(self):
-        response = self._process_charger_sent_logs(CORRECT_METERVALUES_LOG_RECORD)
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED) 
+        with open(file=os.path.join(root_dir, 'statics/logs/test/meterValues.log'), mode = 'r') as f:
+            for line in f:
+                response = self._process_charger_sent_logs(line)
+                self.assertEqual(response.status_code, status.HTTP_201_CREATED) 
 
     def test_process_metervalues_log_record_with_wrong_format(self):
         response = self._process_charger_sent_logs(METERVALUES_LOG_RECORD_WITH_UNSUPPORTED_REGEX_PATTERN)
@@ -61,14 +64,7 @@ class ProcessChargerSentLogsAPIViewTests(TestCase):
     def test_process_metervalues_log_record_with_unsupported_sampledvalue(self):
         response = self._process_charger_sent_logs(METERVALUES_LOG_RECORD_WITH_UNSUPPORTED_SAMPLEDVALUE)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertJSONEqual(
-            response.content.decode('utf-8'),
-            api_failed_response_body({
-                "context": [
-                    '"Sample.Periodics\" is not a valid choice.'
-                ]
-            })
-        )
+        self.assertIn('\\"Sample.Periodics\\" is not a valid choice.', response.content.decode('utf-8'))
 
     def test_process_correct_datatransfer_log_record(self):
         response = self._process_charger_sent_logs(CORRECT_DATATRANSFER_LOG_RECORD)

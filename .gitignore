@@ -56,7 +56,6 @@ cover/
 *.pot
 
 # Django stuff:
-*.log
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
@@ -155,3 +154,9 @@ cython_debug/
 .vscode**
 statics/tmp**
 log_processor/migrations**
+tmp**
+
+# logs
+statics/logs/app**
+statics/logs/extracted**
+statics/logs/raw**
