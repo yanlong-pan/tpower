@@ -6,6 +6,7 @@ from rest_framework import serializers
 
 from log_processor import errors, models
 from log_processor.errors import ErrorMessage
+from scripts import patterns
 from utilities import comparator
 from .serializers import SERIALIZER_TYPES_MAP
 from django.core.exceptions import ValidationError
@@ -181,8 +182,17 @@ def parse_input(data: str) -> ParserOutput:
                 'content': [{'json_str': z}],
                 'raw_data': data
             })
-        )
-        
+        ),
+        ParserPattern(
+            pattern=re.compile(patterns.CONSUMERS_REGEX.pattern + r'\[(\w+)\].+?\[.+,.+,\s*\"(\w+)\"\s*,\s*(\{.+\})\s*]'),
+            build_parser_input=lambda x,y,z: ParserStepIO(**{
+                'charger_number': x,
+                'request_type': y.lower(),
+                'content': [{'json_str': z}],
+                'raw_data': data
+            })
+        ),
+
         # Add more patterns here to parse the input string
     ]
     for pp in parser_patterns:
