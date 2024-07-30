@@ -1,16 +1,19 @@
 - [1. Project Overview](#1-project-overview)
 - [2. Log Extraction Script](#2-log-extraction-script)
-    + [Example:](#example)
-  * [2.1 How to Run](#21-how-to-run)
+    - [Example:](#example)
+  - [2.1 How to Run](#21-how-to-run)
 - [3. Django Backend](#3-django-backend)
-    + [3.1 Main Tasks](#31-main-tasks)
-    + [3.2 Main Technical Stack](#32-main-technical-stack)
-    + [3.3 Database](#33-database)
-      - [3.3.1 ER Diagram](#331-er-diagram)
-      - [3.3.2 Table Examples](#332-table-examples)
-    + [3.4 How to Run](#34-how-to-run)
-    + [3.5 Core Concepts](#35-core-concepts)
-      - [Parsing Rules for MeterValues Request Type](#parsing-rules-for-metervalues-request-type)
+  - [3.1 Main Tasks](#31-main-tasks)
+  - [3.2 Main Technical Stack](#32-main-technical-stack)
+  - [3.3 Database](#33-database)
+    - [3.3.1 ER Diagram](#331-er-diagram)
+    - [3.3.2 Table Examples](#332-table-examples)
+  - [3.4 How to Run](#34-how-to-run)
+  - [3.5 Core Concepts](#35-core-concepts)
+    - [Parsing Rules for MeterValues Request Type](#parsing-rules-for-metervalues-request-type)
+
+<!-- tocstop -->
+
 # 1. Project Overview
 
 This project consists of two main parts: a Python script for extracting log text data and a Django backend for log data analysis.
@@ -51,9 +54,9 @@ After pulling the code, navigate to the project's root directory from the shell.
 - Enter the filename when prompted, e.g., `log1.log`.
 - Check the shell output and view `output.json`.
 
-## 3. Django Backend
+# 3. Django Backend
 
-### 3.1 Main Tasks
+## 3.1 Main Tasks
 
 1. Standardize the user input into a unified format regardless of their specific formats, involving parsing, validating, and transforming the raw data to ensure consistency.
 2. After the raw data is parsed, store standardized data in a relational database.
@@ -61,7 +64,7 @@ After pulling the code, navigate to the project's root directory from the shell.
 4. Implement a robust logging system with a standardized log file format.
 5. Conduct thorough testing to ensure the platform functions correctly and reliably.
 
-### 3.2 Main Technical Stack
+## 3.2 Main Technical Stack
 
 - Python 3.9+
 - Django 3.2
@@ -70,12 +73,12 @@ After pulling the code, navigate to the project's root directory from the shell.
 
 For more information, please refer to `requirements.txt`.
 
-### 3.3 Database
+## 3.3 Database
 
-#### 3.3.1 ER Diagram
+### 3.3.1 ER Diagram
 ![image](https://github.com/user-attachments/assets/6a4d5ad3-f748-44bc-a40b-f7851eab1afc)
 
-#### 3.3.2 Table Examples
+### 3.3.2 Table Examples
 
 - Table: `log_processor_sampledmetervalue`
   - Columns: `id`, `charger_number`, `connector_id`, `transaction_id`, `L1`, `L2`, `L3`, `raw_data`
@@ -85,7 +88,7 @@ For more information, please refer to `requirements.txt`.
   - Columns: `id`, `charger_number`, `vendor_id`, `message_id`, `data`, `raw_data`
     ![image](https://github.com/user-attachments/assets/dc672a7d-d332-430e-bed2-2ba78724da54)
 
-### 3.4 How to Run
+## 3.4 How to Run
 
 After pulling the code, navigate to the project's root directory from the shell. It is recommended to create a Python virtual environment, then follow these steps:
 
@@ -96,7 +99,7 @@ After pulling the code, navigate to the project's root directory from the shell.
 
 Ensure the specific port number (3000 in this case) matches the request port number configured in the frontend files.
 
-### 3.5 Core Concepts
+## 3.5 Core Concepts
 
 User input undergoes parsing, validating, and storing. Below is a brief explanation of each step:
 
@@ -106,7 +109,7 @@ User input undergoes parsing, validating, and storing. Below is a brief explanat
 
 Each step includes exception handling.
 
-#### Parsing Rules for MeterValues Request Type
+### Parsing Rules for MeterValues Request Type
 
 The `metervalues` request usually contains numerous sampledValues. Since not all samples are of interest, the following rules are applied:
 
