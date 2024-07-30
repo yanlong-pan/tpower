@@ -4,6 +4,7 @@
 - [2. Log Extraction Script](#2-log-extraction-script)
   - [Example](#example)
   - [2.1 How to Run](#21-how-to-run)
+  - [2.2 Core Implementation](#22-core-implementation)
 - [3. Django Backend](#3-django-backend)
   - [3.1 Main Tasks](#31-main-tasks)
   - [3.2 Main Technical Stack](#32-main-technical-stack)
@@ -59,6 +60,12 @@ After pulling the code, navigate to the project's root directory from the shell.
 - Run `python scripts/extractor.py`.
 - Enter the filename when prompted, e.g., `log1.log`.
 - Check the shell output and view `output.json`.
+
+## 2.2 Core Implementation
+
+1. The script first extracts all keywords (request types) from the file using regular expressions.
+2. It uses multithreading, with each keyword corresponding to a thread. Each thread reads the file and filters out log records that do not meet the criteria.
+3. To determine if a log record has a unique structure, a custom comparator is used. The main logic includes comparing the key-value structures of two JSON objects, comparing the structures of all elements in a list, and comparing specific structures of designated key-values. For detailed implementation, please refer to `utilities/comparator.py` and the `COMPARABLE_KEYWORD_CONTENT_MAP` in `scripts/patterns.py`.
 
 # 3. Django Backend
 
