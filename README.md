@@ -1,3 +1,16 @@
+- [1. Project Overview](#1-project-overview)
+- [2. Log Extraction Script](#2-log-extraction-script)
+    + [Example:](#example)
+  * [2.1 How to Run](#21-how-to-run)
+- [3. Django Backend](#3-django-backend)
+    + [3.1 Main Tasks](#31-main-tasks)
+    + [3.2 Main Technical Stack](#32-main-technical-stack)
+    + [3.3 Database](#33-database)
+      - [3.3.1 ER Diagram](#331-er-diagram)
+      - [3.3.2 Table Examples](#332-table-examples)
+    + [3.4 How to Run](#34-how-to-run)
+    + [3.5 Core Concepts](#35-core-concepts)
+      - [Parsing Rules for MeterValues Request Type](#parsing-rules-for-metervalues-request-type)
 # 1. Project Overview
 
 This project consists of two main parts: a Python script for extracting log text data and a Django backend for log data analysis.
