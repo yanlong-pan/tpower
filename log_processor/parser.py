@@ -119,6 +119,11 @@ def process_sampled_values(data: ParserStepIO) -> ParserStepIO:
             # When phase is absent, the measured value is interpreted as an overall value. Default to L1
             phase_unit_sampled_values[phase[:2] if phase else "L1"][unit].append(sampled_value)
 
+    # Sort by phase length in order to prioritize "L1", "L2", "L3" > "L1-N", "L2-N", "L3-N" > "L1-L2", "L2-L3", "L3-L1"
+    for _, d in phase_unit_sampled_values.items():
+        for u, list_sample in d.items():
+            list_sample.sort(key=lambda x: len(x["phase"]) if x.get("phase") else 0)
+
     # Process L1 sampled values
     for unit, d in phase_unit_sampled_values["L1"].items():
         for stored_sampled_value in d:
@@ -128,9 +133,16 @@ def process_sampled_values(data: ParserStepIO) -> ParserStepIO:
                 merged_result["L1"][unit].append(stored_sampled_value)
             # If it is not an overall item and there is no same type item, check whether it is single-phase or three-phase
             elif len(_same_type_sample_values(stored_sampled_value, merged_result["L1"][unit])) == 0:
+                phase_mapping = {
+                    "L1": ("L2", "L3"),
+                    "L1-N": ("L2-N", "L3-N"),
+                    "L1-L2": ("L2-L3", "L3-L1"),
+                }
+                # Get the target phases and array indices for the corresponding phase
+                l2_phase, l3_phase = phase_mapping.get(stored_sampled_value.get("phase"))
+                l2_same_type_sample_values = _same_type_sample_values({**stored_sampled_value, "phase": l2_phase}, phase_unit_sampled_values["L2"][unit], ["value", "timestamp"])
+                l3_same_type_sample_values = _same_type_sample_values({**stored_sampled_value, "phase": l3_phase}, phase_unit_sampled_values["L3"][unit], ["value", "timestamp"])
                 # If both of the next two phases have values, it is three-phase
-                l2_same_type_sample_values = _same_type_sample_values(stored_sampled_value, phase_unit_sampled_values["L2"][unit])
-                l3_same_type_sample_values = _same_type_sample_values(stored_sampled_value, phase_unit_sampled_values["L3"][unit])
                 if len(l2_same_type_sample_values) > 0 and len(l3_same_type_sample_values) > 0:
                     merged_result["L1"][unit].append(stored_sampled_value)
                     merged_result["L2"][unit].extend(l2_same_type_sample_values)
