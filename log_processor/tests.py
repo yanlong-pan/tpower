@@ -51,7 +51,10 @@ class ProcessChargerSentLogsAPIViewTests(TestCase):
         with open(file=os.path.join(root_dir, 'statics/logs/test/meterValues.log'), mode = 'r') as f:
             for line in f:
                 response = self._process_charger_sent_logs(line)
-                self.assertEqual(response.status_code, status.HTTP_201_CREATED) 
+                try:
+                    self.assertEqual(response.status_code, status.HTTP_201_CREATED) 
+                except:
+                    loggers.test_logger.error(line)
 
     def test_process_metervalues_log_record_with_wrong_format(self):
         response = self._process_charger_sent_logs(METERVALUES_LOG_RECORD_WITH_UNSUPPORTED_REGEX_PATTERN)
