@@ -160,3 +160,5 @@ tmp**
 statics/logs/app**
 statics/logs/extracted**
 statics/logs/raw**
+output.json
+statics/logs/test/sampledValues.json
