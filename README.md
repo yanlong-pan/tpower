@@ -55,6 +55,7 @@ The primary task is to filter specific formatted data from various offline log f
 After pulling the code, navigate to the project's root directory from the shell. It is recommended to create a Python virtual environment, then follow these steps:
 
 - Place the log files to be extracted under the `statics/logs/raw` path
+- Create a new directory named `app` under `statics/logs`
 - Run `pip install -r requirements.txt`.
 - Set the environment variable: `export PYTHONPATH=$(pwd)`.
 - Run `python scripts/extractor.py`.
